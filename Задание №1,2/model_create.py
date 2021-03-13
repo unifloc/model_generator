@@ -34,10 +34,10 @@ class ModelGenerator:
                  rezim='ORAT', prod_bhp=None, horizontal=False, y_stop=None, only_prod=False,
                  lgr=False, lx=None, ly=None, cells_cy=None, cells_v=None, cells_cx=None,
                  upr_rezim_water=False, upr_rezim_gas=False, rw=None, template=1, neogr=False,
-                 grp=False, nz_grp=1, xs_start_grp=1, xs_stop_grp=2, ys_grp=1, k_grp=100, roughness=False):
+                 grp=False, nz_grp=1, xs_start_grp=1, xs_stop_grp=2, ys_grp=1, k_grp=100, roughness=False, wellstep=0):
         # продолжительность расчета
         self.start_date = f'{start_date}'
-        self.tstep = f'{mounths}*{days}'
+        self.tstep = ''
 
         # размеры модели
         self.dimens = f'{nx} {ny} {nz}'
@@ -186,30 +186,63 @@ class ModelGenerator:
         self.welspecs = ''
         self.wconprod = ''
         self.compdat = ''
-        for name, x, y, fluid in zip(all_well_names, all_well_xs,
-                                             all_well_ys, all_well_fluid):
-            if template == 2 or template == 4: name = f'"{name}"'
-            self.welspecs += name + ' G1 ' + str(x) + ' ' + str(y) + ' 1* ' + fluid + ' /\n'
-
-        for x, name, y, z1, z2, skin, rw in zip(all_well_xs, all_well_names, all_well_ys,
-                                              all_well_z1s, all_well_z2s, skin, rw):
-            if template == 2 or template == 4: name = f'"{name}"'
-            if horizontal:
-                self.compdat = name + ' ' + str(x) + ' ' + str(y) + ' ' + str(z2) + ' ' + str(z2) + ' OPEN	1*	1* ' + str(rw) +  ' 1* ' + str(skin) + ' 1* Y /\n' 
-                for i in range(y+1, y_stop[0]+1):
-                    self.compdat += name + ' ' + str(x) + ' ' + str(i) + ' ' + str(z2) + ' ' + str(z2) + ' OPEN	1*	1* ' + str(rw) +  ' 1* ' + str(skin) + ' 1* Y /\n'
-            else:
-                self.compdat += name + ' ' + str(x) + ' ' + str(y) + ' ' + str(z1) + ' ' + str(z2) + ' OPEN	1*	1*	' + str(rw) +  ' 1* ' + str(skin) + ' /\n'
-
-        for prod, rezim, q_oil, prod_bhp in zip(prod_names, rezim, prod_q_oil, prod_bhp):
-            if template == 2 or template == 4: prod = f'"{prod}"'
-            self.wconprod += prod + ' OPEN ' + rezim + ' ' + str(q_oil) + ' 4* ' + str(prod_bhp) + ' /\n'
-
         self.wconinje = ''
-        if not only_prod:
-            for inj, inj_bhp in zip(inj_names, inj_bhp):
-                if template == 2 or template == 4: inj = f'"{inj}"'
-                self.wconinje += inj + ' WAT OPEN BHP ' + str(inj_bhp) + ' 1* /'
+        self.wellstep_indic = 0
+        self.wellstep = ''
+        if wellstep == 0:
+            self.tstep = ''f'{mounths}*{days}'
+            for name, x, y, fluid in zip(all_well_names, all_well_xs,
+                                                all_well_ys, all_well_fluid):
+                if template == 2 or template == 4: name = f'"{name}"'
+                self.welspecs += name + ' G1 ' + str(x) + ' ' + str(y) + ' 1* ' + fluid + ' /\n'
+
+            for x, name, y, z1, z2, skin, rw in zip(all_well_xs, all_well_names, all_well_ys,
+                                                all_well_z1s, all_well_z2s, skin, rw):
+                if template == 2 or template == 4: name = f'"{name}"'
+                if horizontal:
+                    self.compdat = name + ' ' + str(x) + ' ' + str(y) + ' ' + str(z2) + ' ' + str(z2) + ' OPEN	1*	1* ' + str(rw) +  ' 1* ' + str(skin) + ' 1* Y /\n' 
+                    for i in range(y+1, y_stop[0]+1):
+                        self.compdat += name + ' ' + str(x) + ' ' + str(i) + ' ' + str(z2) + ' ' + str(z2) + ' OPEN	1*	1* ' + str(rw) +  ' 1* ' + str(skin) + ' 1* Y /\n'
+                else:
+                    self.compdat += name + ' ' + str(x) + ' ' + str(y) + ' ' + str(z1) + ' ' + str(z2) + ' OPEN	1*	1*	' + str(rw) +  ' 1* ' + str(skin) + ' /\n'
+
+            for prod, rezim, q_oil, prod_bhp in zip(prod_names, rezim, prod_q_oil, prod_bhp):
+                if template == 2 or template == 4: prod = f'"{prod}"'
+                self.wconprod += prod + ' OPEN ' + rezim + ' ' + str(q_oil) + ' 4* ' + str(prod_bhp) + ' /\n'
+
+            if not only_prod:
+                for inj, inj_bhp in zip(inj_names, inj_bhp):
+                    if template == 2 or template == 4: inj = f'"{inj}"'
+                    self.wconinje += inj + ' WAT OPEN BHP ' + str(inj_bhp) + ' 1* /'
+        else:
+            self.prod_num = 0
+            self.inj_num = 0
+            for fluid, x, name, y, z1, z2, skin, rw in zip(all_well_fluid, all_well_xs, all_well_names, all_well_ys,
+                                                all_well_z1s, all_well_z2s, skin, rw):
+                self.wellstep += 'WELSPECS \n'
+                self.wellstep += name + ' G1 ' + str(x) + ' ' + str(y) + ' 1* ' + fluid + ' /\n'
+                self.wellstep += '/\n\n'
+                self.wellstep += 'COMPDAT \n'
+                self.wellstep += name + ' ' + str(x) + ' ' + str(y) + ' ' + str(z1) + ' ' + str(z2) + ' OPEN	1*	1*	' + str(rw) +  ' 1* ' + str(skin) + ' /\n'
+                self.wellstep += '/\n\n'
+                if fluid == 'OIL':
+                    self.wellstep += 'WCONPROD \n'
+                    self.wellstep += name + ' OPEN ' + rezim[self.prod_num] + ' ' + str(prod_q_oil[self.prod_num]) + ' 4* ' + str(prod_bhp[self.prod_num]) + ' /\n'
+                    self.wellstep += '/\n\n'
+                    self.prod_num += 1
+                elif fluid == 'WAT':
+                    self.wellstep += 'WCONINJE \n'
+                    self.wellstep += name + ' WAT OPEN BHP ' + str(inj_bhp[self.inj_num]) + ' 1* /\n'
+                    self.wellstep += '/\n\n'
+                    self.inj_num += 1
+
+                self.wellstep += 'TSTEP\n'
+                self.wellstep += f'1*{wellstep} /\n\n'
+                self.wellstep_indic += 1
+
+            self.wellstep += 'TSTEP\n'
+            self.wellstep += f'10*{(mounths*days-wellstep*self.wellstep_indic)/10} /\n\n'
+
 
         self.template = template # выбираем шаблон data файла для различных симуляторов
         # templates: 1-opm; 2-ecl (в разработке)
@@ -266,7 +299,8 @@ class ModelGenerator:
             DX=self.dx, DY=self.dy, DZ=self.dz, TOP_BOX=self.top_box, TOPS=self.tops_depth, PORO_BOX=self.poro_box, PORO=self.por,
             PERMX=self.permx, PERMY=self.permy, PERMZ=self.permz, ROCK=self.rock,  DENSITY=self.density,
             EQUIL=self.equil, WELSPECS=self.welspecs, COMPDAT=self.compdat,
-            WCONPROD=self.wconprod, WCONINJE=self.wconinje, TSTEP=self.tstep, GRP=self.grp_word, WELSEGS=self.welsegs, COMPSEGS=self.compsegs)
+            WCONPROD=self.wconprod, WCONINJE=self.wconinje, TSTEP=self.tstep, GRP=self.grp_word, WELSEGS=self.welsegs,
+            COMPSEGS=self.compsegs, WELLSTEP=self.wellstep)
 
 
     def create_model(self, name, result_name, keys):
