@@ -27,17 +27,18 @@ class ModelGenerator:
     Класс для расчета модели
     """
 
-    def __init__(self, start_date="1 'SEP' 2020", mounths=2, days=30, nx=20, ny=20, nz=5, dx=100, dy=100, dz=5, por=0.3, permx=100,
+    def __init__(self, start_date="1 'SEP' 2020", mounths=2, days=30, nx=100, ny=100, nz=5, dx=100, dy=100, dz=5, por=0.3, permx=100,
                  permy=100, permz=10, prod_names=None, prod_xs=None, prod_ys=None, prod_z1s=None, prod_z2s=None, prod_q_oil=None,
                  inj_names=None, inj_xs=None, inj_ys=None, inj_z1s=None, inj_z2s=None, inj_bhp=None, skin=None, oil_den=860, wat_den=1010, gas_den=0.9,
                  p_depth=2500, p_init=250, o_w_contact=2600, pc_woc=0, g_o_contact=2450, pc_goc=0, tops_depth=2500, rock_compr=1.5E-005,
                  rezim='ORAT', prod_bhp=None, horizontal=False, y_stop=None, only_prod=False,
                  lgr=False, lx=None, ly=None, cells_cy=None, cells_v=None, cells_cx=None,
                  upr_rezim_water=False, upr_rezim_gas=False, rw=None, template=1, neogr=False,
-                 grp=False, nz_grp=1, xs_start_grp=1, xs_stop_grp=2, ys_grp=1, k_grp=100, roughness=False):
+                 grp=False, nz_grp=1, xs_start_grp=1, xs_stop_grp=2, ys_grp=1, k_grp=100, roughness=False, wellstep=180, kust=4):
+
         # продолжительность расчета
         self.start_date = f'{start_date}'
-        self.tstep = f'{mounths}*{days}'
+        self.tstep = ''
 
         # размеры модели
         self.dimens = f'{nx} {ny} {nz}'
@@ -186,31 +187,68 @@ class ModelGenerator:
         self.welspecs = ''
         self.wconprod = ''
         self.compdat = ''
-        for name, x, y, fluid in zip(all_well_names, all_well_xs,
-                                             all_well_ys, all_well_fluid):
-            if template == 2 or template == 4: name = f'"{name}"'
-            self.welspecs += name + ' G1 ' + str(x) + ' ' + str(y) + ' 1* ' + fluid + ' /\n'
-
-        for x, name, y, z1, z2, skin, rw in zip(all_well_xs, all_well_names, all_well_ys,
-                                              all_well_z1s, all_well_z2s, skin, rw):
-            if template == 2 or template == 4: name = f'"{name}"'
-            if horizontal:
-                self.compdat = name + ' ' + str(x) + ' ' + str(y) + ' ' + str(z2) + ' ' + str(z2) + ' OPEN	1*	1* ' + str(rw) +  ' 1* ' + str(skin) + ' 1* Y /\n' 
-                for i in range(y+1, y_stop[0]+1):
-                    self.compdat += name + ' ' + str(x) + ' ' + str(i) + ' ' + str(z2) + ' ' + str(z2) + ' OPEN	1*	1* ' + str(rw) +  ' 1* ' + str(skin) + ' 1* Y /\n'
-            else:
-                for i in range(0, len(all_well_xs)):
-                    self.compdat += name + ' ' + str(all_well_xs[i]) + ' ' + str(all_well_ys[i]) + ' ' + str(all_well_z1s[i]) + ' ' + str(all_well_z2s[i]) + ' OPEN	1*	1*	' + str(rw) +  ' 1* ' + str(skin) + ' /\n'
-
-        for prod, rezim, q_oil, prod_bhp in zip(prod_names, rezim, prod_q_oil, prod_bhp):
-            if template == 2 or template == 4: prod = f'"{prod}"'
-            self.wconprod += prod + ' OPEN ' + rezim + ' ' + str(q_oil) + ' 4* ' + str(prod_bhp) + ' /'
-
         self.wconinje = ''
-        if not only_prod:
-            for inj, inj_bhp in zip(inj_names, inj_bhp):
-                if template == 2 or template == 4: inj = f'"{inj}"'
-                self.wconinje += inj + ' WAT OPEN BHP ' + str(inj_bhp) + ' 1* /'
+        self.wellstep_indic = 0
+        self.wellstep = ''
+        if wellstep == 0:
+            self.tstep = ''f'{mounths}*{days}'
+            for name, x, y, fluid in zip(all_well_names, all_well_xs,
+                                                all_well_ys, all_well_fluid):
+                if template == 2 or template == 4: name = f'"{name}"'
+                self.welspecs += name + ' G1 ' + str(x) + ' ' + str(y) + ' 1* ' + fluid + ' /\n'
+
+            for x, name, y, z1, z2, skin, rw in zip(all_well_xs, all_well_names, all_well_ys,
+                                                all_well_z1s, all_well_z2s, skin, rw):
+                if template == 2 or template == 4: name = f'"{name}"'
+                if horizontal:
+                    self.compdat = name + ' ' + str(x) + ' ' + str(y) + ' ' + str(z2) + ' ' + str(z2) + ' OPEN	1*	1* ' + str(rw) +  ' 1* ' + str(skin) + ' 1* Y /\n' 
+                    for i in range(y+1, y_stop[0]+1):
+                        self.compdat += name + ' ' + str(x) + ' ' + str(i) + ' ' + str(z2) + ' ' + str(z2) + ' OPEN	1*	1* ' + str(rw) +  ' 1* ' + str(skin) + ' 1* Y /\n'
+                else:
+                    self.compdat += name + ' ' + str(x) + ' ' + str(y) + ' ' + str(z1) + ' ' + str(z2) + ' OPEN	1*	1*	' + str(rw) +  ' 1* ' + str(skin) + ' /\n'
+
+            for prod, rezim, q_oil, prod_bhp in zip(prod_names, rezim, prod_q_oil, prod_bhp):
+                if template == 2 or template == 4: prod = f'"{prod}"'
+                self.wconprod += prod + ' OPEN ' + rezim + ' ' + str(q_oil) + ' 4* ' + str(prod_bhp) + ' /\n'
+
+            if not only_prod:
+                for inj, inj_bhp in zip(inj_names, inj_bhp):
+                    if template == 2 or template == 4: inj = f'"{inj}"'
+                    self.wconinje += inj + ' WAT OPEN BHP ' + str(inj_bhp) + ' 1* /'
+        else:
+            self.prod_num = 0
+            self.inj_num = 0
+            for fluid, x, name, y, z1, z2, skin, rw in zip(all_well_fluid, all_well_xs, all_well_names, all_well_ys,
+                                                all_well_z1s, all_well_z2s, skin, rw):
+                self.wellstep += 'WELSPECS \n'
+                self.wellstep += name + ' G1 ' + str(x) + ' ' + str(y) + ' 1* ' + fluid + ' /\n'
+                self.wellstep += '/\n\n'
+                self.wellstep += 'COMPDAT \n'
+                self.wellstep += name + ' ' + str(x) + ' ' + str(y) + ' ' + str(z1) + ' ' + str(z2) + ' OPEN	1*	1*	' + str(rw) +  ' 1* ' + str(skin) + ' /\n'
+                self.wellstep += '/\n\n'
+                if fluid == 'OIL':
+                    self.wellstep += 'WCONPROD \n'
+                    self.wellstep += name + ' OPEN ' + rezim[self.prod_num] + ' ' + str(prod_q_oil[self.prod_num]) + ' 4* ' + str(prod_bhp[self.prod_num]) + ' /\n'
+                    self.wellstep += '/\n\n'
+                    self.prod_num += 1
+                elif fluid == 'WAT':
+                    self.wellstep += 'WCONINJE \n'
+                    self.wellstep += name + ' WAT OPEN BHP ' + str(inj_bhp[self.inj_num]) + ' 1* /\n'
+                    self.wellstep += '/\n\n'
+                    self.inj_num += 1
+                self.wellstep_indic += 1
+                if self.wellstep_indic%kust == 0:
+                    self.wellstep += 'TSTEP\n'
+                    self.wellstep += f'1*{wellstep} /\n\n'
+            
+            if self.wellstep_indic%kust != 0:
+                self.wellstep += 'TSTEP\n'
+                self.wellstep += f'1*{wellstep} /\n\n'
+                self.wellstep_indic += 1
+
+            self.wellstep += 'TSTEP\n'
+            self.wellstep += f'400*{(mounths*days-wellstep*self.wellstep_indic/kust)/400} /\n\n'
+
 
         self.template = template # выбираем шаблон data файла для различных симуляторов
         # templates: 1-opm; 2-ecl (в разработке)
@@ -267,7 +305,8 @@ class ModelGenerator:
             DX=self.dx, DY=self.dy, DZ=self.dz, TOP_BOX=self.top_box, TOPS=self.tops_depth, PORO_BOX=self.poro_box, PORO=self.por,
             PERMX=self.permx, PERMY=self.permy, PERMZ=self.permz, ROCK=self.rock,  DENSITY=self.density,
             EQUIL=self.equil, WELSPECS=self.welspecs, COMPDAT=self.compdat,
-            WCONPROD=self.wconprod, WCONINJE=self.wconinje, TSTEP=self.tstep, GRP=self.grp_word, WELSEGS=self.welsegs, COMPSEGS=self.compsegs)
+            WCONPROD=self.wconprod, WCONINJE=self.wconinje, TSTEP=self.tstep, GRP=self.grp_word, WELSEGS=self.welsegs,
+            COMPSEGS=self.compsegs, WELLSTEP=self.wellstep)
 
 
     def create_model(self, name, result_name, keys):
@@ -345,173 +384,6 @@ class ModelGenerator:
                                yaxis_title=y_axis)
         iplot(self.fig)
 
-
-    def npv_plot(self, name=None, l_list=None):
-        directory = "csv_folder/"
-        npv_list = []
-        model_list = []
-        files = [f for f in os.listdir(directory)]
-        files.sort(key=lambda x:int(x.split('.')[1]))
-        for file in files:
-            df = pd.read_csv('csv_folder/%s' % file, parse_dates=[0], index_col=[0])
-            i = int(file.split('.')[1])
-            npv_ = self.npv_method(df, l_list[i])
-            npv_list.append(npv_)
-            model_list.append(f'Модель: {name[i]}')
-        colors = ['lightslategray',] * 10
-        #colors[6] = 'crimson'
-        data = [go.Bar(
-            x = model_list,
-            y = npv_list,
-            marker_color=colors)]
-        self.fig_npv = go.Figure(data=data)
-        self.fig_npv.update_layout(title='NPV по моделям')
-        self.fig_npv.update_yaxes(type="log")
-        iplot(self.fig_npv)
-
-    # метод для отображения графика с оптимальной плотностью сетки
-    def summ_plot_plotn(self, parameters=None, A=None, name=None, l=None, x_axis=None, y_axis=None, title=None):
-        directory = "csv_folder/"
-        npv_list = []
-        model_list = []
-        self.fig = go.Figure()
-        files = [f for f in os.listdir(directory)]
-        files.sort(key=lambda x:int(x.split('.')[1]))
-        i = 0
-        for file in files:
-            df = pd.read_csv('csv_folder/%s' % file, parse_dates=[0], index_col=[0])
-            j = int(file.split('.')[1])
-            y = df[parameters[0]]/A[i]
-            npv_ = self.npv_plotn_method(df, l, A[i])
-            npv_list.append(npv_)
-            model_list.append(f'Модель: {name[i]}')
-            self.fig.add_trace(go.Scatter(
-                x=df.index, y=y, mode='lines', name=f'Модель: {name[i]}'
-            ))
-            i += 1
-
-        self.fig.update_xaxes(tickformat='%d.%m.%y')
-        self.fig.update_layout(title=go.layout.Title(text=title),
-                xaxis_title=x_axis,
-                yaxis_title=y_axis)
-        colors = ['lightslategray',] * 6
-        colors[2] = 'crimson'
-        data = [go.Bar(
-            x = model_list,
-            y = npv_list,
-            marker_color=colors)]
-        self.fig_npv = go.Figure(data=data)
-        self.fig_npv.update_layout(title='NPV по моделям')
-        iplot(self.fig_npv)
-        iplot(self.fig)
-
-    # методы расчета NPV для исследования скважин   
-    def npv_method(self, df, l):
-        ci = 170*10**6 # руб, капитальные затраты на строительство скважины c поверхностным обустройством;
-        cap_l = 40000 # 3кк*73/3к=73к РУБ, стоимость 1 метра горизонтального ствола;
-        p = 4500 # 62*73*6,3=28500 # руб/м3, net-baсk цена нефти за вычетом НПДИ и подготовку нефти; 
-        opex = 10**6 # руб/год, операционные затраты на скважину;
-        r = 0.12 # ставка дисконтирования;
-        to = df.index[0]
-        i = 0
-        npv = -ci - l*cap_l
-        j = 0
-        q = 0
-        for t in df.index:
-            if abs((t - to).days) >= 365:
-                i += 1
-                to = t
-                q = df['FOPT'][j] - q
-                dcf = (q*p - opex)/(1 + r)**i
-                npv += dcf 
-            j += 1
-
-        return round(npv, 0)
-
-
-    def npv_plotn_method(self, df, l, A):
-        ci = 170*10**6 # руб, капитальные затраты на строительство скважины c поверхностным обустройством;
-        cap_l = 40000 # РУБ, стоимость 1 метра горизонтального ствола;
-        p = 15000 # руб/м3, net-baсk цена нефти за вычетом НПДИ и подготовку нефти; 
-        opex = 10**6 # руб/год, операционные затраты на скважину;
-        r = 0.12 # ставка дисконтирования;
-        to = df.index[0]
-        i = 0
-        npv = (-ci - l*cap_l)/A
-        j = 0
-        q = 0
-        for t in df.index:
-            if abs((t - to).days) >= 365:
-                i += 1
-                to = t
-                q = df['FOPT'][j] - q
-                dcf = (q*p - opex)/A/(1 + r)**i
-                npv += dcf 
-            j += 1
-
-        return round(npv, 0)
-
-    # метод для построения графика с оптимальным соотношнием сторон
-    def sootn_plot(self, ls, par, k, h, mu, A):
-        self.fig = go.Figure()
-        x_opt = []
-        y_opt = []
-        ind = [-1, -1, -1, [-5, -5, -6, -5, -5, -6, -5, -5, -5, -5], [-5, -5, -5, -5, -6, -5], -1]
-        x_apr, y_apr = [], []
-        for i in range(0, 6):
-            P = []
-            directory = f"csv_folder/{i}"
-            files = [f for f in os.listdir(directory)]
-            files.sort(key=lambda x:int(x.split('.')[2]))
-            j = 0
-            for file in files:
-                df = pd.read_csv(f'csv_folder/{i}/%s' % file, parse_dates=[0], index_col=[0])
-                if i == 3 or i == 4:
-                    val = k*h*(df['FPR'][ind[i][j]]-df['WBHP:P1'][ind[i][j]])/(df['WOPR:P1'][ind[i][j]]*mu)*10**5*86400
-                else:    
-                    val = k*h*(df['FPR'][ind[i]]-df['WBHP:P1'][ind[i]])/(df['WOPR:P1'][ind[i]]*mu)*10**5*86400
-                val = val + h*(10)**0.5/2/3.14/400*(m.log(h*(10)**0.5/(2*3.14*0.5*0.156*(1+(10)**0.5)*m.sin(3.14/2)))+ 0) # 0 в конце это скин
-                #print(df['WOPR:P1'])
-                P.append(val)
-                j += 1
-            f_interp = interp1d(ls[i] , P, bounds_error=False)
-            x_val = A[i]*10000/(A[i]*10000+160000)
-            # print(x_val)
-            # print(f_interp(x_val))
-            if f_interp(x_val) > 0:
-                x_apr.append(x_val)
-                y_apr.append(f_interp(x_val))
-            self.fig.add_trace(go.Scatter(
-                x=[x_val], y=[f_interp(x_val)], mode='markers', name='Оптимальное соотн. для A/L^2 = ' + str(par[i])
-            ))
-            self.fig.add_trace(go.Scatter(
-                x=ls[i],
-                y=P,
-                mode='lines',
-                name='Параметр - A/L^2 = ' + str(par[i])))
-        t = np.polyfit(x_apr, y_apr, 2)
-        f = np.poly1d(t)
-        print('Таким образом, для нашей системы оптимальное соотношение парктически идеально описывается следующим уравнением:')
-        print(f)
-        for i in range(0, 6):
-            x_opt.append(A[i]*10000/(A[i]*10000+400**2))
-            y_opt.append(f(x_opt[i]))
-        # x_opt.append(200*10000/(200*10000+400**2))
-        # y_opt.append(m.log(1+200*10000/(400**2))*3.5)
-    
-        self.fig.add_trace(go.Scatter(
-                x=x_opt,
-                y=y_opt,
-                mode='lines',
-                name='Оптимальное соотношение геометрических размеров'
-            ))
-        x_axis = 'Соотношение геометрических размеров области дренирования (ширина/длина)'
-        y_axis = 'Безразмерный перепад давлений P*'
-        title = 'Безразмерный перепад давления как функция соотн. геометрических размеров области дренирования'
-        self.fig.update_layout(title=go.layout.Title(text=title),
-                               xaxis_title=x_axis,
-                               yaxis_title=y_axis)
-        iplot(self.fig)
 
     # метод для формирования измельченной сетки
     # необходимо помнить, что размеры ячеек должны отличаться не более чем в 2 раза
