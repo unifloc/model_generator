@@ -97,7 +97,10 @@ def calc_pvt(
 
     # Расчёт параметров газа
     b_gi, zi = gas_fvf_gamma(temperature_k, p_mpa, gamma_g, cor_set[0])
-    mu_gi = gas_visc(temperature_k, p_mpa, zi, gamma_g)
+    try:
+        mu_gi = gas_visc(temperature_k, p_mpa, zi, gamma_g)
+    except:
+        mu_gi = 'exc'
 
     if r_sb <= 0:
         r_sb = 100000

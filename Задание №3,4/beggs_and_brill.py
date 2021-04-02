@@ -278,7 +278,7 @@ def pipe_p_in(
     if rho_water:
         salinity = salinity_from_water_surface_density(rho_water)
     eps /= 1000
-    p, parameters = segmented_pipe_pressure_drop(
+    p = segmented_pipe_pressure_drop( #, parameters
         d,
         length,
         theta,
@@ -300,6 +300,9 @@ def pipe_p_in(
         p_rb,
         b_ro,
     )
+    parameters = 0
+    if p <= 1:
+        p = 0.9
     return p, parameters
 
 
@@ -727,54 +730,57 @@ def segmented_pipe_pressure_drop(
                 eps = eps_l
 
             t_en = t_sn + delta_t * length / tot_length
+            try:
+                p, r_s, z, v_sl, v_sg, v_m, mu_l, mu_g, mu_n, rho_l, rho_g, rho_s, h_l, b_o, b_w, b_g = pipe_pressure_drop(
+                    d,
+                    length,
+                    theta,
+                    eps,
+                    p_sn,
+                    t_sn,
+                    t_en,
+                    q_osc,
+                    wct,
+                    gamma_o,
+                    gamma_g,
+                    r_p,
+                    cor_set,
+                    mu_oil_20,
+                    mu_oil_50,
+                    salinity,
+                    calc_p_in,
+                    1,
+                    r_sb,
+                    p_rb,
+                    b_ro,
+                )
+            except:
+                r_s = r_sb
+                mu_g = 0.005
 
-            p, r_s, z, v_sl, v_sg, v_m, mu_l, mu_g, mu_n, rho_l, rho_g, rho_s, h_l, b_o, b_w, b_g = pipe_pressure_drop(
-                d,
-                length,
-                theta,
-                eps,
-                p_sn,
-                t_sn,
-                t_en,
-                q_osc,
-                wct,
-                gamma_o,
-                gamma_g,
-                r_p,
-                cor_set,
-                mu_oil_20,
-                mu_oil_50,
-                salinity,
-                calc_p_in,
-                1,
-                r_sb,
-                p_rb,
-                b_ro,
-            )
-
-            parameters["r_s"].append(r_s)
-            parameters["v_sl"].append(v_sl)
-            parameters["v_sg"].append(v_sg)
-            parameters["v_m"].append(v_m)
-            parameters["mu_l"].append(mu_l)
-            parameters["mu_g"].append(mu_g)
-            parameters["mu_n"].append(mu_n)
-            parameters["rho_l"].append(rho_l)
-            parameters["rho_g"].append(rho_g)
-            parameters["rho_s"].append(rho_s)
-            parameters["h_l"].append(h_l)
-            parameters["b_o"].append(b_o)
-            parameters["z"].append(z)
-            parameters["b_g"].append(b_g)
-            parameters["b_w"].append(b_w)
+            # parameters["r_s"].append(r_s)
+            # parameters["v_sl"].append(v_sl)
+            # parameters["v_sg"].append(v_sg)
+            # parameters["v_m"].append(v_m)
+            # parameters["mu_l"].append(mu_l)
+            # parameters["mu_g"].append(mu_g)
+            # parameters["mu_n"].append(mu_n)
+            # parameters["rho_l"].append(rho_l)
+            # parameters["rho_g"].append(rho_g)
+            # parameters["rho_s"].append(rho_s)
+            # parameters["h_l"].append(h_l)
+            # parameters["b_o"].append(b_o)
+            # parameters["z"].append(z)
+            # parameters["b_g"].append(b_g)
+            # parameters["b_w"].append(b_w)
 
             p_sn = p
 
-            parameters["p"].append(p_sn)
+            #parameters["p"].append(p_sn)
             t_sn = t_en
             i += 1
 
-    return p, parameters
+    return p #, parameters
 
 
 def pipe_pressure_drop(
@@ -951,6 +957,8 @@ def pipe_pressure_drop(
                 gamma_w,
                 1,
             )
+            if mu_g == 'exc':
+                mu_g = 0.005
 
             dp_dl, v_sl, v_sg, v_m, mu_l, mu_g, mu_n, rho_l, rho_g, rho_s, h_l = begs_brill_gradient(
                 d,
@@ -1076,7 +1084,7 @@ def begs_brill_gradient(
     q_o = c_q[units] * q_osc * b_o
     q_w = c_q[units] * q_wsc * b_w
     q_l = q_o + q_w
-    q_g = b_g * (q_gsc - r_s * q_osc)
+    q_g = b_g * (q_gsc - r_s * q_osc*0)
 
     if q_g < 0:
         q_g = 0
