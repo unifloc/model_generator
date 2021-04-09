@@ -176,7 +176,7 @@ class ModelGenerator:
             all_well_z1s = prod_z1s + inj_z1s
             all_well_z2s = prod_z2s + inj_z2s
             all_well_fluid = ['OIL' for _ in range(len(prod_names))] + ['WAT' for _ in range(len(inj_names))]
-            rezim = rezim + ['']*len(inj_names)
+            rezim = rezim + ['BHP']*len(inj_names)
             well_q = prod_q_oil + ['']*len(inj_names)
             well_bhp = prod_bhp + inj_bhp
         else:
